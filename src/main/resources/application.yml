@@ -1,8 +1,61 @@
 #
 # application.yml — главный конфигурационный файл Spring Boot.
 
-Что нужно сделать:
-  - Указать настройки подключения к базе данных.
-  - Указать порт приложения.
-  - Настроить параметры безопасности и JWT.
-  - Включить Swagger UI.
+#Что нужно сделать:
+#  - Указать настройки подключения к базе данных.
+#  - Указать порт приложения.
+#  - Настроить параметры безопасности и JWT.
+#  - Включить Swagger UI.
+
+spring:
+  application:
+    name: bank_REST
+  profiles:
+    active: ${BANK_REST_PROFILE_ACTIVE:local}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  liquibase:
+    enabled: false
+
+graphql:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:mysososecretsecretkeyanddontspeak}
+  expiration: ${JWT_EXPIRATION_MS:30000}
+  refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:1800000}
+
+logging:
+  level:
+    org.springframework.security: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aleksandrkakovkin
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: ${BANK_REST_DEV_URL_DB}
+    username: ${BANK_REST_DEV_USERNAME_DB}
+    password: ${BANK_REST_DEV_PASSWORD_DB}
+    driver-class-name: org.postgresql.Driver
+
