@@ -2,12 +2,15 @@ package com.example.bankcards.controller;
 
 import com.example.bankcards.dto.dtoRequest.CardRequestDto;
 import com.example.bankcards.dto.dtoResponse.CardResponseDto;
+import com.example.bankcards.dto.dtoResponse.PageResponseDto;
 import com.example.bankcards.entity.Card;
+import com.example.bankcards.dto.util.PageServiceDto;
 import com.example.bankcards.service.cardService.CardService;
-import com.example.bankcards.service.cardService.CardServiceDto;
+import com.example.bankcards.dto.util.CardServiceDto;
 import com.example.bankcards.util.StatusCard;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,33 +19,34 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("admin/cards")
 public class CardController {
+
     private final CardService cardService;
     private final CardServiceDto cardServiceDto;
+    private final PageServiceDto pageServiceDto;
 
     @Autowired
-    public CardController(CardService cardService, CardServiceDto cardServiceDto) {
+    public CardController(CardService cardService, CardServiceDto cardServiceDto, PageServiceDto pageServiceDto) {
         this.cardService = cardService;
         this.cardServiceDto = cardServiceDto;
+        this.pageServiceDto = pageServiceDto;
     }
 
     @GetMapping
-    public ResponseEntity<List<CardResponseDto>> getAllCards() {
-        List<Card> allCards = cardService.getAllCards();
-        List<CardResponseDto> cardResponseDto = cardServiceDto.entityToDtoList(allCards);
-        return ResponseEntity.ok(cardResponseDto);
+    public ResponseEntity<PageResponseDto<CardResponseDto>> getAllCards(@RequestParam(defaultValue = "0") int page,
+                                                                        @RequestParam(defaultValue = "10") int size) {
+        Page<Card> allCards = cardService.getAllCards(page, size);
+        return ResponseEntity.ok(pageServiceDto.toPageResponse(allCards, cardServiceDto::entityToDto));
     }
 
     @PostMapping("/{name}/card")
     public ResponseEntity<CardResponseDto> createCard(@PathVariable("name") String name, @Valid @RequestBody CardRequestDto cardRequestDto) {
-        Card card = cardServiceDto.dtoToEntity(cardRequestDto);
-        Card newCard = cardService.createCard(card, name);
+        Card newCard = cardService.createCard(cardServiceDto.dtoToEntity(cardRequestDto), name);
         return ResponseEntity.ok(cardServiceDto.entityToDto(newCard));
     }
 

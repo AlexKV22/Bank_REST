@@ -46,7 +46,7 @@ public class JwtTokenProvider {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
-            throw new InvalidJwtException("Неверный JWT токен при валидации");
+            throw new InvalidJwtException();
         }
     }
 }

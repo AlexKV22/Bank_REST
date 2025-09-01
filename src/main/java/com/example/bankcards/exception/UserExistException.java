@@ -1,10 +1,14 @@
 package com.example.bankcards.exception;
 
 public class UserExistException extends RuntimeException {
-    public UserExistException(String message) {
-        super(message);
+    private final String name;
+
+    public UserExistException(String name) {
+        super("Имя пользователя занято");
+        this.name = name;
     }
-    public UserExistException(String message, Throwable cause) {
-        super(message, cause);
+
+    public String getName() {
+        return name;
     }
 }

@@ -1,15 +1,14 @@
-package com.example.bankcards.service.cardService;
+package com.example.bankcards.dto.util;
 
 import com.example.bankcards.dto.converter.CardMapper;
 import com.example.bankcards.dto.dtoRequest.CardRequestDto;
 import com.example.bankcards.dto.dtoResponse.CardResponseDto;
 import com.example.bankcards.entity.Card;
+import com.example.bankcards.util.CardMaskUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-import java.util.List;
-
-@Service
+@Component
 public class CardServiceDto {
     private final CardMapper cardMapper;
 
@@ -23,10 +22,7 @@ public class CardServiceDto {
     }
 
     public CardResponseDto entityToDto(Card card) {
+        card.setNumber(CardMaskUtil.mask(card.getNumber()));
         return cardMapper.entityToDto(card);
-    }
-
-    public List<CardResponseDto> entityToDtoList(List<Card> cards) {
-        return cards.stream().map(card -> cardMapper.entityToDto(card)).toList();
     }
 }

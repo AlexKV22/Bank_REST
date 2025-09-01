@@ -1,9 +1,42 @@
-# 
-# docker-compose.yml — определяет сервисы для разработки и тестирования.
+version: "3.8.0"
 
-Что нужно сделать:
-  - Настроить сервисы для:
-      - PostgreSQL (или MySQL) с начальной базой.
-      - Приложения Spring Boot (если нужно).
-  - Открыть нужные порты (например, 5432, 8080).
-  - Настроить volume для хранения данных БД.
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - backend
+
+
+  bank_REST:
+    build: .
+    image: bank_rest-image
+    container_name: bank_rest
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=${BANK_REST_DEV_URL_DB}
+      - SPRING_DATASOURCE_USERNAME=${BANK_REST_DEV_USERNAME_DB}
+      - SPRING_DATASOURCE_PASSWORD=${BANK_REST_DEV_PASSWORD_DB}
+      - GRAPHQL_CORS_ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION_MS}
+      - JWT_REFRESH_EXPIRATION_MS=${JWT_REFRESH_EXPIRATION_MS}
+    depends_on:
+      - postgres
+    restart: on-failure
+    networks:
+      - backend
+
+networks:
+  backend:
+volumes:
+  db_data:

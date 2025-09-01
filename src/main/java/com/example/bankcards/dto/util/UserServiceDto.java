@@ -1,15 +1,13 @@
-package com.example.bankcards.service.userService;
+package com.example.bankcards.dto.util;
 
 import com.example.bankcards.dto.converter.UserMapper;
 import com.example.bankcards.dto.dtoRequest.UserRequestDto;
 import com.example.bankcards.dto.dtoResponse.UserResponseDto;
 import com.example.bankcards.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-import java.util.List;
-
-@Service
+@Component
 public class UserServiceDto {
     private final UserMapper userMapper;
 
@@ -24,9 +22,5 @@ public class UserServiceDto {
 
     public UserResponseDto entityToDto(User user) {
         return userMapper.entityToDto(user);
-    }
-
-    public List<UserResponseDto> entityToDtoList(List<User> users) {
-        return users.stream().map(user -> userMapper.entityToDto(user)).toList();
     }
 }

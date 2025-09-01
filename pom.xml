@@ -6,7 +6,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.5.4</version>
-        <relativePath/><!-- lookup parent from repository -->
+        <relativePath/>
     </parent>
     <groupId>com.bank.rest</groupId>
     <artifactId>Bank_REST</artifactId>
@@ -24,6 +24,7 @@
         <swagger.version>2.8.9</swagger.version>
         <jacoco.version>0.8.12</jacoco.version>
         <lombok.version>1.18.36</lombok.version>
+        <jwt.version>0.11.5</jwt.version>
     </properties>
 
     <dependencies>
@@ -75,18 +76,6 @@
             <version>${postgresql.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>${testcontainer.postgres}</version>
-            <scope>test</scope>
-        </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.testcontainers</groupId>-->
-<!--            <artifactId>jdbc</artifactId>-->
-<!--            <version>${testcontainer.postgres}</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
-        <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-web</artifactId>
         </dependency>
@@ -95,20 +84,24 @@
             <artifactId>spring-security-config</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.11.5</version>
+            <version>${jwt.version}</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.11.5</version>
+            <version>${jwt.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId> <!-- или jjwt-gson -->
-            <version>0.11.5</version>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jwt.version}</version>
             <scope>runtime</scope>
         </dependency>
     </dependencies>
@@ -139,6 +132,13 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <useModulePath>false</useModulePath>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
@@ -156,7 +156,7 @@
                     </execution>
                     <execution>
                         <id>report</id>
-                        <phase>prepare-package</phase>
+                        <phase>test</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
@@ -173,12 +173,13 @@
                                     <limits>
                                         <limit>
                                             <counter>LINE</counter>
-                                            <value>COVEREDRATIO</value>
+                                            <value>COVERED_RATIO</value>
                                             <minimum>0.80</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
                             </rules>
+                            <haltOnFailure>true</haltOnFailure>
                         </configuration>
                     </execution>
                 </executions>
@@ -186,11 +187,3 @@
         </plugins>
     </build>
 </project>
-        <!--
-        pom.xml — файл для управления зависимостями проекта.
-
-        Что нужно сделать:
-        - Указать зависимости: Spring Boot Starter Web, Spring Security, Spring Data JPA, Liquibase, JWT, Swagger, PostgreSQL/MySQL.
-        - Установить Java 17+ как используемую версию.
-        - Добавить плагины для компиляции и сборки (например, spring-boot-maven-plugin).
-        -->

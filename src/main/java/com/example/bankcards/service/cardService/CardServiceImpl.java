@@ -6,19 +6,24 @@ import com.example.bankcards.exception.CardExistsException;
 import com.example.bankcards.exception.CardNotFoundException;
 import com.example.bankcards.exception.IllegalCardStatusException;
 import com.example.bankcards.exception.IllegalUserException;
-import com.example.bankcards.exception.NoAccessDatabaseException;
 import com.example.bankcards.exception.EmptyDatabaseException;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.service.userService.UserService;
+import com.example.bankcards.util.CardMaskUtil;
 import com.example.bankcards.util.StatusCard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class CardServiceImpl implements CardService {
@@ -34,59 +39,48 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Card> getAllCards() {
-        try {
-            List<Card> allCards = cardRepository.findAll();
+    public Page<Card> getAllCards(int page, int size) {
+            Pageable pageable = PageRequest.of(page, size, Sort.by("number").ascending());
+            Page<Card> allCards = cardRepository.findAll(pageable);
             if (allCards.isEmpty()) {
-                logger.warn("Полученный список карт из базы данных пустой");
                 throw new EmptyDatabaseException("Полученный список карт из базы данных пустой");
             }
-            logger.debug("Список карт из базы данных успешно получен и список не пуст");
+            logger.info("Успешно получен список карт");
             return allCards;
-        } catch (DataAccessException e) {
-            logger.error("Не удалось получить список карт, проверьте доступ к базе данных.");
-            throw new NoAccessDatabaseException("Не удалось выполнить операцию, проверьте доступ к базе данных.", e.getCause());
-        }
     }
 
     @Override
     @Transactional
     public Card createCard(Card card, String name) {
-        User user = userService.findByName(name);
-        logger.debug("Пользователь из базы данных для назначения карты успешно получен");
-        try {
+        User user = userService.findUserByName(name);
+        logger.info("Успешно получен пользователь для создания карты");
             if (cardRepository.existsByNumber(card.getNumber())) {
-                logger.warn("Карта с номером {} уже существует", card.getNumber());
-                throw new CardExistsException("Такая карта уже существует");
+                throw new CardExistsException(card.getNumber());
             }
             card.setUser(user);
             Card newCard = cardRepository.save(card);
             logger.info("Новая карта для юзера {} успешно сохранена", user.getName());
             return newCard;
-        } catch (DataAccessException e) {
-            logger.error("Не удалось создать новую карту, проверьте доступ к базе данных.");
-            throw new NoAccessDatabaseException("Не удалось выполнить операцию, проверьте доступ к базе данных", e.getCause());
-        }
     }
 
     @Override
     @Transactional
     public Card changeStatusCard(Long id, String name, StatusCard statusCard) {
-        Card card = findById(id);
-        logger.debug("Карта с id {} успешно найдена", id);
-        if (card.getUser().getName().equals(name)) {
-            logger.debug("Переданное имя пользователя совпадает с именем пользователя карты из базы данных");
-            try {
+        Card updatedCard = null;
+            Optional<Card> cardByIdAndUserName = cardRepository.findCardByIdAndUserName(id, name);
+            if (cardByIdAndUserName.isPresent()) {
+                logger.info("Карта с id {} успешно найдена и принадлежит пользователю {}", id, name);
+                Card card = cardByIdAndUserName.get();
                 switch (statusCard) {
                     case ACTIVE: {
                         if (card.getStatusCard() == StatusCard.ACTIVE) {
                             logger.info("Карта с id {} уже активирована", id);
+                            updatedCard = card;
                         } else if (card.getStatusCard() != StatusCard.BLOCKED) {
-                            logger.warn("Карта с id {} не может быть активирована из статуса {}", id, card.getStatusCard());
-                            throw new IllegalCardStatusException("Карта не может быть активирована не из статуса BLOCKED");
+                            throw new IllegalCardStatusException(id, card.getStatusCard(), statusCard);
                         } else {
                             card.setStatusCard(StatusCard.ACTIVE);
-                            card = cardRepository.save(card);
+                            updatedCard = cardRepository.save(card);
                             logger.info("Карта с id {} успешно активирована", id);
                         }
                         break;
@@ -94,9 +88,10 @@ public class CardServiceImpl implements CardService {
                     case BLOCKED: {
                         if (card.getStatusCard() == StatusCard.BLOCKED) {
                             logger.info("Карта с id {} уже заблокирована", id);
+                            updatedCard = card;
                         } else {
                             card.setStatusCard(StatusCard.BLOCKED);
-                            card = cardRepository.save(card);
+                            updatedCard = cardRepository.save(card);
                             logger.info("Карта с id {} успешно заблокирована", id);
                         }
                         break;
@@ -104,64 +99,85 @@ public class CardServiceImpl implements CardService {
                     case EXPIRED: {
                         if (card.getStatusCard() == StatusCard.EXPIRED) {
                             logger.info("Карта с id {} уже в статусе просроченной ", id);
+                            updatedCard = card;
+                        } else if (card.getStatusCard() == StatusCard.BLOCKED) {
+                            throw new IllegalCardStatusException(id, card.getStatusCard(), statusCard);
                         } else {
                             card.setStatusCard(StatusCard.EXPIRED);
-                            card = cardRepository.save(card);
+                            updatedCard = cardRepository.save(card);
                             logger.info("Карте с id {} успешно установлен статус просроченной", id);
                         }
+                        break;
+                    }
+                    default: {
+                        throw new IllegalCardStatusException(card.getId(), card.getStatusCard(), statusCard);
                     }
                 }
-            } catch (DataAccessException e) {
-                logger.error("Не удалось установить новый статус карты, проверьте доступ к базе данных.");
-                throw new NoAccessDatabaseException("Не удалось установить новый статус карты, проверьте доступ к базе данных.", e.getCause());
+            } else {
+                throw new IllegalUserException(id, name);
             }
-        } else {
-            logger.warn("Карта с id {} не принадлежит пользователю с именем {}", id, name);
-            throw new IllegalUserException("Карта не принадлежит пользователю");
-        }
-        return card;
+        return updatedCard;
     }
 
     @Override
     @Transactional
     public void deleteCard(Long id, String name) {
-        Card card = findById(id);
-        logger.debug("Карта с id {} успешно найдена", id);
-        if (card.getUser().getName().equals(name)) {
-            try {
-                logger.debug("Переданное имя пользователя совпадает с именем пользователя карты из базы данных");
-                cardRepository.delete(card);
-                logger.info("Карта с id {} успешно удалена", id);
-            } catch (DataAccessException e) {
-                logger.error("Не удалось удалить карту, проверьте доступ к базе данных.");
-                throw new NoAccessDatabaseException("Не удалось выполнить операцию, проверьте доступ к базе данных.", e.getCause());
-            }
+        Optional<Card> cardByIdAndUserName = cardRepository.findCardByIdAndUserName(id, name);
+        if (cardByIdAndUserName.isPresent()) {
+            logger.info("Карта с id {} успешно найдена и принадлежит пользователю {}", id, name);
+            Card card = cardByIdAndUserName.get();
+            cardRepository.delete(card);
+            logger.info("Карта с id {} успешно удалена", id);
         } else {
-            logger.warn("Карта с id {} не принадлежит пользователю с именем {}", id, name);
-            throw new IllegalUserException("Карта не принадлежит пользователю");
+            throw new IllegalUserException(id, name);
         }
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public Card findById(Long id) {
-        try {
-            return cardRepository.findById(id).orElseThrow(() -> {
-                logger.warn("Карта с id {} не найдена", id);
-                return new CardNotFoundException("Карта не найдена");
-            });
-        } catch (DataAccessException e) {
-            logger.error("Не удалось найти карту, проверьте доступ к базе данных.");
-            throw new NoAccessDatabaseException("Не удалось выполнить операцию, проверьте доступ к базе данных.", e.getCause());
+    public Page<Card> findAllCardsForUser(String name, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("number").ascending());
+        return cardRepository.findCardsByUserName(name, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Card findCardByNumberAndUserNameForUser(String number, String name) {
+        return cardRepository.findCardByNumberAndUserName(number, name).orElseThrow(() -> new CardNotFoundException(number, name));
+    }
+
+    @Override
+    @Transactional
+    public Card setStatusToBlockCardForUser(String number, String name) {
+        Card changedStatusForUser = null;
+        Optional<Card> cardByNumberAndUserName = cardRepository.findCardByNumberAndUserName(number, name);
+        if (cardByNumberAndUserName.isPresent()) {
+            logger.info("Карта с номером {} успешно найдена и принадлежит пользователю {}", CardMaskUtil.mask(number), name);
+            Card card = cardByNumberAndUserName.get();
+            if (card.getStatusCard() == StatusCard.REQUIRED_BLOCK) {
+                logger.info("Карта с номером {} уже в статусе запроса на блокировку", CardMaskUtil.mask(number));
+                changedStatusForUser = card;
+            } else if (card.getStatusCard() == StatusCard.BLOCKED) {
+                logger.info("Карта с номером {} уже заблокирована", CardMaskUtil.mask(number));
+                changedStatusForUser = card;
+            } else {
+                card.setStatusCard(StatusCard.REQUIRED_BLOCK);
+                changedStatusForUser = cardRepository.save(card);
+                logger.info("Карте с номером {} успешно установлен запрос на блокировку", CardMaskUtil.mask(number));
+            }
+            return changedStatusForUser;
+        } else {
+            throw new CardNotFoundException(number, name);
         }
     }
 
-    @Transactional(readOnly = true)
-    public List<Card> findAllCards(String name) {
-        try {
-            return cardRepository.findCardsByName(name);
-        } catch (DataAccessException e) {
-            logger.error("Не удалось найти список карт пользователя, проверьте доступ к базе данных.");
-            throw new NoAccessDatabaseException("Не удалось выполнить операцию, проверьте доступ к базе данных.", e.getCause());
-        }
+    @Transactional
+    public List<Card> updateBalanceToTransfer(Card from, Card to, BigDecimal amount) {
+        from.setBalance(from.getBalance().subtract(amount));
+        to.setBalance(to.getBalance().add(amount));
+        Card cardFrom = cardRepository.save(from);
+        Card cardTo = cardRepository.save(to);
+        logger.info("Успешно сохранены измененные балансы карт с номерами отправителя: {}, и получателя {}", CardMaskUtil.mask(from.getNumber()), CardMaskUtil.mask(to.getNumber()));
+        return List.of(cardFrom, cardTo);
     }
 }

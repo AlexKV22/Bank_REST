@@ -1,10 +1,19 @@
 package com.example.bankcards.exception;
 
 public class CardNotFoundException extends RuntimeException {
-    public CardNotFoundException(String message) {
-        super(message);
+    private final String cardNumber;
+    private final String name;
+
+    public CardNotFoundException(String cardNumber, String name) {
+        super("Карта не найдена");
+        this.cardNumber = cardNumber;
+        this.name = name;
     }
-    public CardNotFoundException(String message, Throwable cause) {
-        super(message, cause);
+
+    public String getCardNumber() {
+        return cardNumber;
+    }
+    public String getName() {
+        return name;
     }
 }

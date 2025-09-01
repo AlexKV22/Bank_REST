@@ -1,10 +1,14 @@
 package com.example.bankcards.exception;
 
 public class UserNotFoundException extends RuntimeException {
-    public UserNotFoundException(String message) {
-        super(message);
+    private final String name;
+
+    public UserNotFoundException(String name) {
+        super("Пользователь не найден в базе данных");
+        this.name = name;
     }
-    public UserNotFoundException(String message, Throwable cause) {
-        super(message, cause);
+
+    public String getName() {
+        return name;
     }
 }
